@@ -1,0 +1,263 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Expense Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('style') }}">
+    {% if page == 'report' %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% endif %}
+</head>
+<body>
+<header class="header">
+    <a class="brand" href="{{ url_for('home') }}">💰 Expense Tracker</a>
+    <nav>
+        <a href="{{ url_for('home') }}">Dashboard</a>
+        <a href="{{ url_for('add_expense') }}">Add Expense</a>
+        <a href="{{ url_for('expenses') }}">Expenses</a>
+        <a href="{{ url_for('budget') }}">Budget</a>
+        <a href="{{ url_for('report') }}">Reports</a>
+    </nav>
+</header>
+
+<main class="container">
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <div class="message">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    {% if page == 'home' %}
+        <section class="welcome">
+            <h1>Personal Expense Dashboard</h1>
+            <p>Track your spending and manage your money wisely.</p>
+        </section>
+
+        <section class="cards">
+            <div class="card">
+                <p>Spent This Month</p>
+                <h2>₹{{ "%.2f"|format(total) }}</h2>
+            </div>
+            <div class="card">
+                <p>Monthly Budget</p>
+                <h2>₹{{ "%.2f"|format(budget) }}</h2>
+            </div>
+            <div class="card">
+                <p>Expenses This Month</p>
+                <h2>{{ count }}</h2>
+            </div>
+            <div class="card">
+                <p>Budget Remaining</p>
+                <h2>₹{{ "%.2f"|format(remaining) }}</h2>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-heading">
+                <h2>Recent Expenses</h2>
+                <a class="button" href="{{ url_for('add_expense') }}">+ Add Expense</a>
+            </div>
+            {% if recent %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th><th>Title</th>
+                            <th>Category</th><th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in recent %}
+                        <tr>
+                            <td>{{ item.expense_date }}</td>
+                            <td>{{ item.title }}</td>
+                            <td>{{ item.category }}</td>
+                            <td>₹{{ "%.2f"|format(item.amount) }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p>No expenses yet. Add your first expense to get started.</p>
+            {% endif %}
+        </section>
+
+    {% elif page == 'add' %}
+        <section class="panel form-panel">
+            <h1>Add New Expense</h1>
+            <p>Enter your expense details below.</p>
+            <form method="POST" action="{{ url_for('add_expense') }}">
+                <label for="title">Expense title</label>
+                <input id="title" name="title" type="text"
+                       maxlength="150" placeholder="e.g. Lunch" required>
+
+                <label for="category">Category</label>
+                <select id="category" name="category" required>
+                    <option value="">Choose a category</option>
+                    <option>Food</option>
+                    <option>Travel</option>
+                    <option>Education</option>
+                    <option>Shopping</option>
+                    <option>Entertainment</option>
+                    <option>Bills</option>
+                    <option>Health</option>
+                    <option>Other</option>
+                </select>
+
+                <label for="amount">Amount (₹)</label>
+                <input id="amount" name="amount" type="number"
+                       min="0.01" step="0.01" placeholder="150.00" required>
+
+                <label for="expense_date">Date</label>
+                <input id="expense_date" name="expense_date" type="date"
+                       value="{{ today }}" required>
+
+                <button class="button" type="submit">Save Expense</button>
+            </form>
+        </section>
+
+    {% elif page == 'expenses' %}
+        <section class="panel">
+            <h1>All Expenses</h1>
+            <form class="search-form" method="GET"
+                  action="{{ url_for('expenses') }}">
+                <input type="search" name="search" value="{{ search }}"
+                       placeholder="Search title or category">
+                <button class="button" type="submit">Search</button>
+                <a class="button secondary"
+                   href="{{ url_for('expenses') }}">Clear</a>
+            </form>
+
+            <p class="total-line">
+                Total shown: ₹{{ "%.2f"|format(total) }}
+            </p>
+
+            {% if expenses %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th><th>Title</th><th>Category</th>
+                            <th>Amount</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for item in expenses %}
+                        <tr>
+                            <td>{{ item.expense_date }}</td>
+                            <td>{{ item.title }}</td>
+                            <td>{{ item.category }}</td>
+                            <td>₹{{ "%.2f"|format(item.amount) }}</td>
+                            <td>
+                                <form method="POST"
+                                      action="{{ url_for('delete_expense', expense_id=item.id) }}"
+                                      onsubmit="return confirm('Delete this expense?');">
+                                    <button class="delete-button"
+                                            type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p>No matching expenses found.</p>
+            {% endif %}
+        </section>
+
+    {% elif page == 'budget' %}
+        <section class="panel form-panel">
+            <h1>Monthly Budget</h1>
+            <p>Manage your spending limit for this month.</p>
+
+            <div class="budget-summary">
+                <p>Budget: <strong>₹{{ "%.2f"|format(budget) }}</strong></p>
+                <p>Spent: <strong>₹{{ "%.2f"|format(spent) }}</strong></p>
+                <p>Remaining: <strong>₹{{ "%.2f"|format(remaining) }}</strong></p>
+            </div>
+
+            {% set percent = (spent / budget * 100) if budget > 0 else 0 %}
+            <div class="progress">
+                <div class="progress-bar"
+                     style="width: {{ [percent, 100] | min }}%"></div>
+            </div>
+
+            {% if remaining < 0 %}
+                <p class="warning">You have exceeded your monthly budget.</p>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('budget') }}">
+                <label for="budget">New monthly budget (₹)</label>
+                <input id="budget" name="budget" type="number"
+                       min="0.01" step="0.01"
+                       value="{{ budget }}" required>
+                <button class="button" type="submit">Update Budget</button>
+            </form>
+        </section>
+
+    {% elif page == 'report' %}
+        <section class="panel">
+            <h1>Monthly Expense Report</h1>
+            <p>Total spent this month:
+                <strong>₹{{ "%.2f"|format(total) }}</strong>
+            </p>
+
+            {% if categories %}
+                <div class="chart-container">
+                    <canvas id="expenseChart"></canvas>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Category</th><th>Amount</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for item in categories %}
+                            <tr>
+                                <td>{{ item.category }}</td>
+                                <td>₹{{ "%.2f"|format(item.total) }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <script>
+                    const labels = {{ categories | map(attribute='category') | list | tojson }};
+                    const amounts = {{ categories | map(attribute='total') | list | tojson }};
+
+                    new Chart(document.getElementById('expenseChart'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Expenses (₹)',
+                                data: amounts
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'bottom' }
+                            }
+                        }
+                    });
+                </script>
+            {% else %}
+                <p>No expenses recorded this month. Add an expense to see your report.</p>
+            {% endif %}
+        </section>
+    {% endif %}
+</main>
+
+<footer>
+    <p>Personal Expense Tracker | Python, Flask and SQLite</p>
+</footer>
+</body>
+</html>
